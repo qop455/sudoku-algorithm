@@ -14,6 +14,7 @@ public class MainActivity extends Activity {
     private static int isQ=1;
     private final static int REFRESH=1;
     private final static int DONE=2;
+    private final static int THREADDONE =3;
     private static String Q1 =
             "3 0 1 0 6 0 4 0 0 " +
                     "0 4 0 0 0 0 0 1 0 " +
@@ -35,6 +36,7 @@ public class MainActivity extends Activity {
                     "0 7 0 0 6 0 0 8 0 " +
                     "0 0 4 3 0 0 2 0 0";
     private TextView showTime;
+    private TextView showThreadTime;
     private TextView sudokuView;
     private Button startBtn;
     private Button startThrBtn;
@@ -45,8 +47,11 @@ public class MainActivity extends Activity {
     private Thread thread=null;
     private Thread threadPartA=null;
     private Thread threadPartB=null;
-    private static String totalTime;
     private static long myTime;
+    private static int clickTime=0;
+    private static long totalTime=0;
+    private static int clickThreadTime=0;
+    private static long totalThreadTime =0;
 
     private void initLayout(){
         setContentView(R.layout.activity_main);
@@ -69,6 +74,10 @@ public class MainActivity extends Activity {
                         selectQ(Q1);
                         break;
                 }
+                clickTime=0;
+                clickThreadTime=0;
+                totalTime=0;
+                totalThreadTime=0;
                 initSudoku();
                 refreshTable();
             }
@@ -76,6 +85,7 @@ public class MainActivity extends Activity {
         /************************************************/
 
         showTime = (TextView)findViewById(R.id.show_time);
+        showThreadTime = (TextView)findViewById(R.id.show_init_time);
         sudokuView = (TextView)findViewById(R.id.sudoku_view);
         startBtn = (Button)findViewById(R.id.start_btn);
         startThrBtn = (Button)findViewById(R.id.start_thread_btn);
@@ -84,47 +94,35 @@ public class MainActivity extends Activity {
         startBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                clickTime++;
                 initSudoku();
-//                if (thread.isDaemon()||thread.interrupted()||thread.isAlive()){
-//                    thread.interrupt();
-//                    thread=null;
-//                    totalTime= String.valueOf(0);
-//                    Message msg = new Message();
-//                    msg.what=DONE;
-//                    Bundle timeBundle=new Bundle();
-//                    timeBundle.putString("TIME", totalTime);
-//                    myHandler.sendMessage(msg);
-//                    refreshTable();
-//                }else{
-                    thread=new myThread();
-                    myTime=System.currentTimeMillis();
-                    thread.start();
-//                }
+                myTime=System.currentTimeMillis();
+                while(myContinue){
+                    goThrough();
+                    goEachCheck();
+                    goLineCheck();
+                }
+                long t=System.currentTimeMillis()-myTime;
+                Bundle timeBundle=new Bundle();
+                timeBundle.putLong("TIME", t);
+                Message msg = new Message();
+                msg.what = DONE;
+                msg.setData(timeBundle);
+                myHandler.sendMessage(msg);
+                myContinue=true;
+                refreshTable();
             }
         });
         startThrBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                clickThreadTime++;
                 initSudoku();
-//                if (threadPartA.isAlive()){
-//                    threadPartA.interrupt();
-//                    threadPartB.interrupt();
-//                    threadPartA=null;
-//                    threadPartB=null;
-//                    totalTime= String.valueOf(0);
-//                    Message msg = new Message();
-//                    msg.what=DONE;
-//                    Bundle timeBundle=new Bundle();
-//                    timeBundle.putString("TIME", totalTime);
-//                    myHandler.sendMessage(msg);
-//                    refreshTable();
-//                }else{
-                    threadPartA=new myThreadPartA();
-                    threadPartB=new myThreadPartB();
-                    myTime=System.currentTimeMillis();
-                    threadPartA.start();
-                    threadPartB.start();
-//                }
+                myTime=System.currentTimeMillis();
+                threadPartA=new myThreadPartA();
+                threadPartB=new myThreadPartB();
+                threadPartA.start();
+                threadPartB.start();
             }
         });
         refreshTable();
@@ -141,6 +139,18 @@ public class MainActivity extends Activity {
     }
 
     private void initSudoku(){
+        if (thread!=null){
+            thread.interrupt();
+            thread=null;
+        }
+        if (threadPartA!=null){
+            threadPartA.interrupt();
+            threadPartA=null;
+        }
+        if (threadPartB!=null){
+            threadPartB.interrupt();
+            threadPartB=null;
+        }
         myContinue=true;
         myStringSudoku = sudokuTable.split("\\s+");
 
@@ -173,6 +183,10 @@ public class MainActivity extends Activity {
                 rowStart=(k/9)*9;
                 colStart=k%9;
                 bloStart=(rowStart/27)*27+(colStart/3)*3;
+                if(value<1||value>9){
+                    Log.d("GoThrough:","Error Value:"+value);
+                    continue;
+                }
                 /***row***/
                 for(int ka=rowStart;ka<rowStart+9;ka++){
                     if (ka!=k&&myStringSudoku[ka].equals("0")){
@@ -266,26 +280,6 @@ public class MainActivity extends Activity {
                 mySudoku[index][6] + mySudoku[index][7] + mySudoku[index][8]);
     }
 
-    private class myThread extends Thread{
-        @Override
-        public void run() {
-            while(myContinue){
-                goThrough();
-                goEachCheck();
-                goLineCheck();
-            }
-            totalTime=String.valueOf(System.currentTimeMillis() - myTime);
-            Bundle timeBundle=new Bundle();
-            timeBundle.putString("TIME",totalTime);
-            Message msg = new Message();
-            msg.what = DONE;
-            msg.setData(timeBundle);
-            myHandler.sendMessage(msg);
-            myContinue=true;
-            refreshTable();
-        }
-    }
-
     private class myThreadPartA extends Thread{
         @Override
         public void run() {
@@ -303,11 +297,11 @@ public class MainActivity extends Activity {
                 goEachCheck();
                 goLineCheck();
             }
-            totalTime=String.valueOf(System.currentTimeMillis() - myTime);
+            long t=System.currentTimeMillis()-myTime;
             Bundle timeBundle=new Bundle();
-            timeBundle.putString("TIME",totalTime);
+            timeBundle.putLong("TIME",t);
             Message msg = new Message();
-            msg.what = DONE;
+            msg.what = THREADDONE;
             msg.setData(timeBundle);
             myHandler.sendMessage(msg);
             myContinue=true;
@@ -318,12 +312,12 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        myTime=System.currentTimeMillis();
 
         selectQ(Q1);
         initSudoku();
         initLayout();
 
-        thread=new myThread();
         threadPartA=new myThreadPartA();
         threadPartB=new myThreadPartB();
     }
@@ -332,6 +326,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         if (thread!=null){
             thread.interrupt();
+            thread.stop();
             thread=null;
         }
         if (threadPartA!=null){
@@ -366,8 +361,15 @@ public class MainActivity extends Activity {
                     break;
                 case DONE:
                     Bundle y=msg.getData();
-                    String t=y.getString("TIME");
-                    showTime.setText(t+"ms");
+                    long t=y.getLong("TIME");
+                    totalTime+=t;
+                    showTime.setText(t+"ms,"+"avg:"+((clickTime==0)?0:totalTime/clickTime)+"ms("+clickTime+")");
+                    break;
+                case THREADDONE:
+                    Bundle z=msg.getData();
+                    long v=z.getLong("TIME");
+                    totalThreadTime+=v;
+                    showThreadTime.setText(v + "ms," + "avg:" + ((clickThreadTime==0)?0:totalThreadTime / clickThreadTime )+ "ms(" + clickThreadTime + ")");
                     break;
             }
         }
