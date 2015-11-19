@@ -140,15 +140,30 @@ public class MainActivity extends Activity {
 
     private void initSudoku(){
         if (thread!=null){
-            thread.interrupt();
+            try{
+                thread.interrupt();
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             thread=null;
         }
         if (threadPartA!=null){
-            threadPartA.interrupt();
+            try{
+                threadPartA.interrupt();
+                threadPartA.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             threadPartA=null;
         }
         if (threadPartB!=null){
-            threadPartB.interrupt();
+            try{
+                threadPartB.interrupt();
+                threadPartB.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             threadPartB=null;
         }
         myContinue=true;
@@ -324,19 +339,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (thread!=null){
-            thread.interrupt();
-            thread.stop();
-            thread=null;
-        }
-        if (threadPartA!=null){
-            threadPartA.interrupt();
-            threadPartA=null;
-        }
-        if (threadPartB!=null){
-            threadPartB.interrupt();
-            threadPartB=null;
-        }
+        initSudoku();
         super.onDestroy();
     }
 
